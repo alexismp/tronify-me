@@ -1,0 +1,7 @@
+{
+  "name": "Tronify Me",
+  "description": "Use your webcam to take a picture and transform yourself into a character from the Tron universe with neon effects and a custom background, powered by AI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
