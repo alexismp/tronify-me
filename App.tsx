@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { transformImageToTron } from './services/geminiService';
 import { Loader } from './components/Loader';
+import { Uploader } from './components/Uploader';
 
 // Header Component
 const TronHeader: React.FC = () => (
@@ -62,28 +63,45 @@ const WebcamCapture: React.FC<WebcamCaptureProps> = ({ videoRef, onCapture, isRe
 interface ResultDisplayProps {
   imageUrl: string;
   onReset: () => void;
+  onShare: () => void;
+  isUploading: boolean;
 }
-const ResultDisplay: React.FC<ResultDisplayProps> = ({ imageUrl, onReset }) => (
+const ResultDisplay: React.FC<ResultDisplayProps> = ({ imageUrl, onReset, onShare, isUploading }) => (
   <div className="flex flex-col items-center gap-6 w-full max-w-2xl mx-auto p-4">
     <h2 className="text-2xl font-bold text-orange-400 font-mono">TRANSFORMATION COMPLETE</h2>
     <div className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.5)]">
       <img src={imageUrl} alt="Tronified" className="w-full h-full object-cover" />
+      {isUploading && (
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
+          <Uploader />
+        </div>
+      )}
     </div>
-    <button
-      onClick={onReset}
-      className="px-8 py-4 bg-cyan-500 text-black font-bold text-lg uppercase rounded-md shadow-[0_0_15px_rgba(6,182,212,0.8)] hover:bg-cyan-400 hover:shadow-[0_0_25px_rgba(6,182,212,1)] transition-all duration-300"
-    >
-      Create New Identity
-    </button>
+    <div className="flex gap-4">
+      <button
+        onClick={onReset}
+        className="px-8 py-4 bg-cyan-500 text-black font-bold text-lg uppercase rounded-md shadow-[0_0_15px_rgba(6,182,212,0.8)] hover:bg-cyan-400 hover:shadow-[0_0_25px_rgba(6,182,212,1)] transition-all duration-300"
+      >
+        Create New Identity
+      </button>
+      <button
+        onClick={onShare}
+        disabled={isUploading}
+        className="px-8 py-4 bg-green-500 text-black font-bold text-lg uppercase rounded-md shadow-[0_0_15px_rgba(34,197,94,0.8)] hover:bg-green-400 hover:shadow-[0_0_25px_rgba(34,197,94,1)] transition-all duration-300 disabled:bg-gray-700 disabled:text-gray-400 disabled:shadow-none disabled:cursor-not-allowed"
+      >
+        {isUploading ? 'Sharing...' : 'Share'}
+      </button>
+    </div>
   </div>
 );
 
 const App: React.FC = () => {
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generatedImage, setGeneratedImage] = useState<{ base64: string; url: string } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState<boolean>(false);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -161,7 +179,7 @@ const App: React.FC = () => {
 
         try {
           const resultImageUrl = await transformImageToTron(imageDataUrl);
-          setGeneratedImage(resultImageUrl);
+          setGeneratedImage({ base64: resultImageUrl, url: resultImageUrl });
         } catch (e: any) {
           setError(e.message || "An unknown error occurred during image generation.");
           setGeneratedImage(null);
@@ -183,6 +201,37 @@ const App: React.FC = () => {
     setIsVideoReady(false);
   };
 
+  const handleShare = async () => {
+    if (generatedImage) {
+      setIsUploading(true);
+      try {
+        const filename = `tronified-image-${Date.now()}.png`;
+        const response = await fetch('https://email-runner-714656958210.us-central1.run.app/upload', {
+          method: 'POST',
+          headers: {
+            'X-API-KEY': process.env.UPLOAD_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            image: generatedImage.base64.split(',')[1], // remove the data URL prefix
+            name: filename,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to share image.');
+        }
+
+        alert('Image shared successfully!');
+      } catch (error) {
+        console.error('Error sharing image:', error);
+        setError('Failed to share image. Please try again.');
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return <Loader />;
@@ -199,7 +248,7 @@ const App: React.FC = () => {
       );
     }
     if (generatedImage) {
-      return <ResultDisplay imageUrl={generatedImage} onReset={handleReset} />;
+      return <ResultDisplay imageUrl={generatedImage.url} onReset={handleReset} onShare={handleShare} isUploading={isUploading} />;
     }
     if (stream) {
       return <WebcamCapture videoRef={videoRef} onCapture={handleCapture} isReady={isVideoReady} />;
@@ -227,6 +276,9 @@ const App: React.FC = () => {
       </main>
       
       <canvas ref={canvasRef} className="hidden"></canvas>
+      <footer className="absolute bottom-4 text-center text-xs text-gray-500 w-full">
+        <p>This app was (vibe-)coded with AI Studio, Gemini CLI, and Jules</p>
+      </footer>
     </div>
   );
 };

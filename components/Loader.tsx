@@ -6,7 +6,8 @@ const loadingMessages = [
   "Rendering digital landscape...",
   "Compiling user identity disk...",
   "Watch out for derezzing!",
-  "Initializing light cycle sequence..."
+  "Initializing light cycle sequence...",
+  "This can take up to 60 seconds..."
 ];
 
 export const Loader: React.FC = () => {

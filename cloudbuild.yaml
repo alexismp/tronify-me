@@ -1,0 +1,29 @@
+steps:
+# Build the container image
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/l200-two/tronify-me-repo/tronify-me', '--build-arg', 'GEMINI_API_KEY=$_GEMINI_API_KEY', '--build-arg', 'UPLOAD_API_KEY=$_UPLOAD_API_KEY', '.']
+
+# Push the container image to Artifact Registry
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'us-central1-docker.pkg.dev/l200-two/tronify-me-repo/tronify-me']
+
+# Deploy container image to Cloud Run
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args:
+    - 'run'
+    - 'deploy'
+    - 'tronify-me'
+    - '--image'
+    - 'us-central1-docker.pkg.dev/l200-two/tronify-me-repo/tronify-me'
+    - '--region'
+    - 'us-central1'
+    - '--platform'
+    - 'managed'
+    - '--allow-unauthenticated'
+    - '--port'
+    - '8080'
+    - '--set-env-vars'
+    - 'UPLOAD_API_KEY=$_UPLOAD_API_KEY,GEMINI_API_KEY=$_GEMINI_API_KEY'
+images:
+- 'us-central1-docker.pkg.dev/l200-two/tronify-me-repo/tronify-me'
