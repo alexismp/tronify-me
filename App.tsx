@@ -203,10 +203,15 @@ const App: React.FC = () => {
 
   const handleShare = async () => {
     if (generatedImage) {
+      const email = prompt("Please enter your email address to share the image:");
+      if (!email) {
+        return;
+      }
+
       setIsUploading(true);
       try {
         const filename = `tronified-image-${Date.now()}.png`;
-        const response = await fetch('https://email-runner-714656958210.us-central1.run.app/upload', {
+        const uploadResponse = await fetch('https://email-runner-714656958210.us-central1.run.app/upload', {
           method: 'POST',
           headers: {
             'X-API-KEY': process.env.UPLOAD_API_KEY,
@@ -218,8 +223,24 @@ const App: React.FC = () => {
           }),
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to share image.');
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload image for sharing.');
+        }
+
+        const emailResponse = await fetch('https://email-runner-714656958210.us-central1.run.app/email', {
+            method: 'POST',
+            headers: {
+                'X-API-KEY': process.env.UPLOAD_API_KEY,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email,
+                name: filename,
+            }),
+        });
+
+        if (!emailResponse.ok) {
+            throw new Error('Failed to send email.');
         }
 
         alert('Image shared successfully!');
@@ -278,6 +299,7 @@ const App: React.FC = () => {
       <canvas ref={canvasRef} className="hidden"></canvas>
       <footer className="absolute bottom-4 text-center text-xs text-gray-500 w-full">
         <p>This app was (vibe-)coded with AI Studio, Gemini CLI, and Jules</p>
+        <p>Powered by Gemini Nano Banana</p>
       </footer>
     </div>
   );

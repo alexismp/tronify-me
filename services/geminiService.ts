@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const API_KEY = process.env.API_KEY;
 
@@ -8,7 +8,7 @@ if (!API_KEY) {
   throw new Error("API_KEY environment variable is not set");
 }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
+const genAI = new GoogleGenerativeAI(API_KEY);
 
 const base64ToGeminiPart = (base64: string, mimeType: string) => {
   // Strips the data URL prefix, e.g., "data:image/png;base64,"
@@ -22,29 +22,25 @@ const base64ToGeminiPart = (base64: string, mimeType: string) => {
 };
 
 export const transformImageToTron = async (base64ImageData: string): Promise<string> => {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
+
   const imagePart = base64ToGeminiPart(base64ImageData, 'image/png');
   const textPart = {
     text: "Transform the person in this image into a character from the Tron movie. The character should have glowing neon lines on their suit. The background should be a dark, futuristic grid with red, orange, and blue neon light effects. In the background, display the text 'DEVOXX' in a prominent neon font. The overall aesthetic should be dark, high-tech, and inspired by the Tron movie franchise.",
   };
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: {
-        parts: [imagePart, textPart],
-      },
-      config: {
-        responseModalities: [Modality.IMAGE, Modality.TEXT],
-      },
-    });
-
-    // Find the image part in the response
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
-        const mimeType = part.inlineData.mimeType;
-        const base64Data = part.inlineData.data;
-        return `data:${mimeType};base64,${base64Data}`;
-      }
+    const result = await model.generateContent([textPart, imagePart]);
+    const response = await result.response;
+    const firstCandidate = response.candidates[0];
+    if (!firstCandidate.content || !firstCandidate.content.parts || firstCandidate.content.parts.length === 0) {
+      throw new Error("AI did not return any content.");
+    }
+    const firstPart = firstCandidate.content.parts[0];
+    if (firstPart.inlineData) {
+      const mimeType = firstPart.inlineData.mimeType;
+      const base64Data = firstPart.inlineData.data;
+      return `data:${mimeType};base64,${base64Data}`;
     }
     
     // Fallback if no image is found

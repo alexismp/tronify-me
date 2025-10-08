@@ -1,4 +1,5 @@
 # Stage 1: Build the application
+# Force a new build
 FROM node:20-slim AS build
 ARG GEMINI_API_KEY
 ENV GEMINI_API_KEY=$GEMINI_API_KEY
